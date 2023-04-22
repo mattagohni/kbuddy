@@ -7,7 +7,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/franciscoescher/goopenai"
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -18,6 +22,7 @@ var explainCmd = &cobra.Command{
 	Short: "Will explain given resources using ChatGPT",
 	Long:  `given a resource in yaml format this command will return an explanation what is happening`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var messages []goopenai.Message
 		apiKey := os.Getenv("OPEN_AI_API_KEY")
 		organization := os.Getenv("OPEN_AI_API_ORG")
 
@@ -31,19 +36,57 @@ var explainCmd = &cobra.Command{
 		fmt.Printf("using API-Key %s\n", apiKey)
 		fmt.Printf("for Org %s\n", organization)
 
-		dat, err := os.ReadFile(givenResource)
-		check(err)
+		// new code
+		// Load the file into a buffer
 
-		readContent := string(dat)
+		data, err := os.ReadFile(givenResource)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Create a runtime.Decoder from the Codecs field within
+		// k8s.io/client-go that's pre-loaded with the schemas for all
+		// the standard Kubernetes resource types.
+		decoder := scheme.Codecs.UniversalDeserializer()
+
+		for _, resourceYAML := range strings.Split(string(data), "---") {
+
+			// skip empty documents, `Decode` will fail on them
+			if len(resourceYAML) == 0 {
+				continue
+			}
+
+			// - obj is the API object (e.g., Deployment)
+			// - groupVersionKind is a generic object that allows
+			//   detecting the API type we are dealing with, for
+			//   accurate type casting later.
+			obj, groupVersionKind, err := decoder.Decode(
+				[]byte(resourceYAML),
+				nil,
+				nil)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+
+			// Figure out from `Kind` the resource type, and attempt
+			// to cast appropriately.
+			if groupVersionKind.Group == "apps" &&
+				groupVersionKind.Version == "v1" &&
+				groupVersionKind.Kind == "Deployment" {
+				deployment := obj.(*v1.Deployment)
+				message := goopenai.Message{
+					Role:    "user",
+					Content: fmt.Sprintf("explain %s", deployment.Spec.String()),
+				}
+				messages = append(messages, message)
+				log.Print(deployment.ObjectMeta.Name)
+			}
+		}
 
 		r := goopenai.CreateCompletionsRequest{
-			Model: "gpt-3.5-turbo",
-			Messages: []goopenai.Message{
-				{
-					Role:    "user",
-					Content: fmt.Sprintf(`explain %s`, readContent),
-				},
-			},
+			Model:       "gpt-3.5-turbo",
+			Messages:    messages,
 			Temperature: 0.2,
 		}
 
