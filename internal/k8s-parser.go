@@ -35,20 +35,6 @@ func Parse(yaml string) (obj runtime.Object, kind *schema.GroupVersionKind, err 
 
 		resource = obj
 		groupVersionKind = groupVersionKindInfo
-
-		// Figure out from `Kind` the resource type, and attempt
-		// to cast appropriately.
-		/*if groupVersionKind.Group == "apps" &&
-		groupVersionKind.Version == "v1" &&
-		groupVersionKind.Kind == "Deployment" {
-		deployment := obj.(*v1.Deployment)
-		/*message := goopenai.Message{
-			Role:    "user",
-			Content: fmt.Sprintf("explain %s", deployment.Spec.String()),
-		}*/
-		//messages = append(messages, message)
-		//	log.Print(deployment.ObjectMeta.Name)
-		//}*/
 	}
 
 	return resource, groupVersionKind, err

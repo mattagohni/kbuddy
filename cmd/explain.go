@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/franciscoescher/goopenai"
 	"github.com/spf13/cobra"
+	"log"
 	"os"
 )
 
@@ -31,16 +32,9 @@ var explainCmd = &cobra.Command{
 		fmt.Printf("using API-Key %s\n", apiKey)
 		fmt.Printf("for Org %s\n", organization)
 
-		// new code
-		// Load the file into a buffer
-
-		// Create a runtime.Decoder from the Codecs field within
-		// k8s.io/client-go that's pre-loaded with the schemas for all
-		// the standard Kubernetes resource types.
-
 		message := goopenai.Message{
 			Role:    "user",
-			Content: fmt.Sprintf("explain %s in context of a kubernetes resource", givenSearchTerm),
+			Content: fmt.Sprintf("explain %s in context of kubernetes", givenSearchTerm),
 		}
 		messages = append(messages, message)
 		r := goopenai.CreateCompletionsRequest{
@@ -50,9 +44,7 @@ var explainCmd = &cobra.Command{
 		}
 
 		completions, err := client.CreateCompletions(context.Background(), r)
-		if err != nil {
-			panic(err)
-		}
+		check(err)
 
 		fmt.Println(completions)
 	},
@@ -74,6 +66,7 @@ func init() {
 
 func check(e error) {
 	if e != nil {
+		log.Print(e)
 		panic(e)
 	}
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// analizeCmd represents the analize command
 var analizeCmd = &cobra.Command{
 	Use:   "analize",
 	Short: "A brief description of your command",
@@ -49,7 +48,7 @@ to quickly create a Cobra application.`,
 		}
 
 		for _, resourceYAML := range strings.Split(string(data), "---") {
-
+			var instructions string
 			// skip empty documents, `Decode` will fail on them
 			if len(resourceYAML) == 0 {
 				continue
@@ -60,21 +59,30 @@ to quickly create a Cobra application.`,
 			//   detecting the API type we are dealing with, for
 			//   accurate type casting later.
 			obj, groupVersionKind, err := internal.Parse(resourceYAML)
+			if groupVersionKind == nil {
+				println("no valid resource given")
+				os.Exit(1)
+			}
 			check(err)
 
-			// Figure out from `Kind` the resource type, and attempt
-			// to cast appropriately.
-			if groupVersionKind.Group == "apps" &&
-				groupVersionKind.Version == "v1" &&
-				groupVersionKind.Kind == "Deployment" {
-				deployment := obj.(*v1.Deployment)
-				message := goopenai.Message{
-					Role:    "user",
-					Content: fmt.Sprintf("analize violated best practices in the following Spec of a kubernetes resource and provide tips: \n%s", deployment.Spec.String()),
-				}
-				messages = append(messages, message)
-				log.Print(deployment.ObjectMeta.Name)
+			switch groupVersionKind.Kind {
+			case "Deployment":
+				resource := obj.(*v1.Deployment)
+				instructions = fmt.Sprintf("analize violated best practices in the following kubernetes "+
+					"resource and provide tips: \n%s\nAt the end of your response print a yaml for this spec "+
+					"following best practices. Use comments in the line where best practice is used to reference "+
+					"the line with the related best practice in the yaml output.", resource.String())
+
+			default:
+				instructions = "politely point out, that no answer can be given, because the given resource could not be recognized"
 			}
+
+			message := goopenai.Message{
+				Role:    "user",
+				Content: instructions,
+			}
+
+			messages = append(messages, message)
 		}
 		r := goopenai.CreateCompletionsRequest{
 			Model:       "gpt-3.5-turbo",
