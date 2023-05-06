@@ -11,6 +11,7 @@ import (
 	goopenai "github.com/franciscoescher/goopenai"
 	. "github.com/mattagohni/kbuddy/internal/response"
 	"github.com/spf13/cobra"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,7 +19,6 @@ import (
 )
 
 // explainCmd represents the explain command
-var explainCmd = &cobra.Command{}
 
 func init() {
 	apiKey := os.Getenv("OPEN_AI_API_KEY")
@@ -29,16 +29,6 @@ func init() {
 
 	explainCmd := NewExplainCommand(callOpenAi)
 	rootCmd.AddCommand(explainCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// explainCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// explainCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai.CreateCompletionsRequest) (goopenai.CreateCompletionsResponse, error)) *cobra.Command {
@@ -95,24 +85,30 @@ func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai
 			yamlExample := explainResponse.ExampleYaml
 			jsonExample := explainResponse.ExampleJson
 
-			output := []string{keyword, explanation, disclaimer, yamlExample, jsonExample}
-
-			fmt.Fprintln(cmd.OutOrStdout(), keyword+"\n")
-			fmt.Fprintln(cmd.OutOrStdout(), explanation+"\n")
-			fmt.Fprintln(cmd.OutOrStdout(), disclaimer+"\n")
-			fmt.Fprintln(cmd.OutOrStdout(), yamlExample)
-			fmt.Fprintln(cmd.OutOrStdout(), jsonExample)
-			for _, reading := range furtherReadings {
-				output = append(output, reading)
-				fmt.Fprintln(cmd.OutOrStdout(), reading+"\n")
-			}
+			output := createOutput(keyword, explanation, disclaimer, yamlExample, jsonExample, furtherReadings)
+			printOutput(cmd.OutOrStdout(), output)
 		},
 	}
 
-	// add any flags or arguments that the command needs
-	// ...
-
 	return explainCmd
+}
+
+func printOutput(writer io.Writer, output []string) {
+	for _, outputPart := range output {
+		if len(outputPart) > 0 {
+			_, err := fmt.Fprintln(writer, outputPart+"\n")
+			check(err)
+		}
+	}
+}
+
+func createOutput(keyword string, explanation string, disclaimer string, yamlExample string, jsonExample string, furtherReadings []string) []string {
+	output := []string{keyword, explanation, disclaimer, yamlExample, jsonExample}
+
+	for _, reading := range furtherReadings {
+		output = append(output, reading)
+	}
+	return output
 }
 
 func check(e error) {

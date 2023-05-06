@@ -26,7 +26,7 @@ func TestExplainCmd(t *testing.T) {
 
 	expectedOutput := getExpectedExplainOutput()
 	// assert
-	assert.Equal(t, buf.String(), expectedOutput)
+	assert.Equal(t, expectedOutput, buf.String())
 }
 
 func prepareExplainCommand(mockClient *mocks.OpenAiClient) (*bytes.Buffer, *cobra.Command) {
@@ -43,8 +43,6 @@ func getExpectedExplainOutput() string {
 A Deployment provides declarative updates for Pods and ReplicaSets.
 
 This information may not be accurate.
-
-
 
 Pod
 An overview of Pods.
