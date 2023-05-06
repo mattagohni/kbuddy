@@ -8,30 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/franciscoescher/goopenai"
+	goopenai "github.com/franciscoescher/goopenai"
 	. "github.com/mattagohni/kbuddy/internal/response"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
-)
-
-const (
-	ResponseFormat = `
-{
-	keyword: "The keyword to explain",
-	explanation: "the up to 1000 word explanation of the given keyword",
-	disclaimer: "disclaimer about correctness with with a link to the kubernetes docs",
-	exampleYaml: "the yaml definition of the resource of the given keyword if the keyword is a kubernetes resource, empty otherwise",
-	exampleJson: "the json definition of the resource of the given keyword if the keyword is a kubernetes resource, empty otherwise",
-	furtherReading: [
-	    {
-			keyword: the keyword
-			description: short description of the topic
-			link: hyperlink to the kubernetes docs if possible
-		}
-	]
-}
-`
+	"path/filepath"
+	"runtime"
 )
 
 // explainCmd represents the explain command
@@ -42,8 +25,9 @@ func init() {
 	organization := os.Getenv("OPEN_AI_API_ORG")
 
 	client := NewMyOpenAiClient(apiKey, organization)
+	callOpenAi := client.CreateCompletions
 
-	explainCmd := NewExplainCommand(client.client)
+	explainCmd := NewExplainCommand(callOpenAi)
 	rootCmd.AddCommand(explainCmd)
 
 	// Here you will define your flags and configuration settings.
@@ -57,7 +41,7 @@ func init() {
 	// explainCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func NewExplainCommand(client OpenAiClient) *cobra.Command {
+func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai.CreateCompletionsRequest) (goopenai.CreateCompletionsResponse, error)) *cobra.Command {
 	var explainCmd = &cobra.Command{
 		Use:   "explain",
 		Short: "Will explain given topic related to kubernetes using ChatGPT",
@@ -71,11 +55,17 @@ func NewExplainCommand(client OpenAiClient) *cobra.Command {
 				givenSearchTerm = args[0]
 			}
 
+			_, filename, _, _ := runtime.Caller(0)
+			pathToCurrentDir := filepath.Dir(filename)
+
+			var responseFormat, err = os.ReadFile(pathToCurrentDir + "/request/explain_request.json")
+			check(err)
+
 			message := goopenai.Message{
 				Role: "user",
 				Content: fmt.Sprintf(
 					"explain %s in context of kubernetes. in your response make a new line every 80"+
-						" charecters. also structure your response in a json with the following format "+ResponseFormat, givenSearchTerm),
+						" charecters. also structure your response in a json with the following format "+string(responseFormat), givenSearchTerm),
 			}
 			messages = append(messages, message)
 			r := goopenai.CreateCompletionsRequest{
@@ -84,7 +74,7 @@ func NewExplainCommand(client OpenAiClient) *cobra.Command {
 				Temperature: 0.2,
 			}
 
-			completions, err := client.CreateCompletions(context.Background(), r)
+			completions, err := sendExplainRequest(context.Background(), r)
 			check(err)
 
 			var explainResponse ExplainResponse
@@ -104,13 +94,16 @@ func NewExplainCommand(client OpenAiClient) *cobra.Command {
 			yamlExample := explainResponse.ExampleYaml
 			jsonExample := explainResponse.ExampleJson
 
-			fmt.Println(keyword + "\n")
-			fmt.Println(explanation + "\n")
-			fmt.Println(disclaimer + "\n")
-			fmt.Println(yamlExample)
-			fmt.Println(jsonExample)
+			output := []string{keyword, explanation, disclaimer, yamlExample, jsonExample}
+
+			fmt.Fprintln(cmd.OutOrStdout(), keyword+"\n")
+			fmt.Fprintln(cmd.OutOrStdout(), explanation+"\n")
+			fmt.Fprintln(cmd.OutOrStdout(), disclaimer+"\n")
+			fmt.Fprintln(cmd.OutOrStdout(), yamlExample)
+			fmt.Fprintln(cmd.OutOrStdout(), jsonExample)
 			for _, reading := range furtherReadings {
-				fmt.Println(reading + "\n")
+				output = append(output, reading)
+				fmt.Fprintln(cmd.OutOrStdout(), reading+"\n")
 			}
 		},
 	}
