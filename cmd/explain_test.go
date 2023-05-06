@@ -6,33 +6,38 @@ import (
 	"fmt"
 	"github.com/franciscoescher/goopenai"
 	"github.com/mattagohni/kbuddy/cmd/mocks"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 )
 
 func TestExplainCmd(t *testing.T) {
 	// arrange
 	var mockClient = new(mocks.OpenAiClient)
+	initTestServer(mockClient, createExpectedRequest())
 
-	var givenSearchTerm = "Deployment"
-	var requestFormat, err = os.ReadFile("./request/explain_request.json")
-	check(err)
-
-	expectedRequest := createExpectedRequest(requestFormat, givenSearchTerm)
-
-	initTestServer(err, mockClient, expectedRequest)
-
-	buf := bytes.NewBufferString("")
-	cmd := NewExplainCommand(mockClient.CreateCompletions)
-	cmd.SetOut(buf)
-	cmd.SetArgs([]string{"Deployment"})
+	buf, cmd := prepareExplainCommand(mockClient)
 
 	// act
 	cmd.Execute()
 
+	expectedOutput := getExpectedExplainOutput()
+	// assert
+	assert.Equal(t, buf.String(), expectedOutput)
+}
+
+func prepareExplainCommand(mockClient *mocks.OpenAiClient) (*bytes.Buffer, *cobra.Command) {
+	buf := bytes.NewBufferString("")
+	cmd := NewExplainCommand(mockClient.CreateCompletions)
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{"Deployment"})
+	return buf, cmd
+}
+
+func getExpectedExplainOutput() string {
 	var expectedOutput = `Deployment
 
 A Deployment provides declarative updates for Pods and ReplicaSets.
@@ -48,16 +53,14 @@ https://kubernetes.io/docs/concepts/workloads/pods/
 ReplicaSet
 An overview of ReplicaSets.
 https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+
 `
-	// assert
-	if strings.TrimSpace(buf.String()) != strings.TrimSpace(expectedOutput) {
-		t.Errorf("Expected output: %s\nGot: %s", expectedOutput, buf.String())
-	}
+	return expectedOutput
 }
 
-func initTestServer(err error, mockClient *mocks.OpenAiClient, expectedRequest goopenai.CreateCompletionsRequest) {
+func initTestServer(mockClient *mocks.OpenAiClient, expectedRequest goopenai.CreateCompletionsRequest) {
 	// Mock response
-	mockResponse := mockOpenAiResponse(err, mockClient, expectedRequest)
+	mockResponse := mockOpenAiResponse(mockClient, expectedRequest)
 
 	// Create a new server to mock the API response
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,13 +69,19 @@ func initTestServer(err error, mockClient *mocks.OpenAiClient, expectedRequest g
 		w.Write([]byte(mockResponse))
 	}))
 	defer testServer.Close()
-	os.Setenv("OPEN_AI_API_KEY", "test-api-key")
-	os.Setenv("OPEN_AI_API_ORG", "test-org")
-	os.Setenv("OPEN_AI_API_URL", testServer.URL)
+	setEnvironmentVariables(testServer)
 
 }
 
-func createExpectedRequest(responseFormat []byte, givenSearchTerm string) goopenai.CreateCompletionsRequest {
+func setEnvironmentVariables(testServer *httptest.Server) {
+	os.Setenv("OPEN_AI_API_KEY", "test-api-key")
+	os.Setenv("OPEN_AI_API_ORG", "test-org")
+	os.Setenv("OPEN_AI_API_URL", testServer.URL)
+}
+
+func createExpectedRequest() goopenai.CreateCompletionsRequest {
+	var responseFormat, _ = os.ReadFile("./request/response_format.json")
+	var givenSearchTerm = "Deployment"
 	expectedRequest := goopenai.CreateCompletionsRequest{
 		Model: "gpt-3.5-turbo",
 		Messages: []goopenai.Message{
@@ -88,7 +97,7 @@ func createExpectedRequest(responseFormat []byte, givenSearchTerm string) goopen
 	return expectedRequest
 }
 
-func mockOpenAiResponse(err error, mockClient *mocks.OpenAiClient, expectedRequest goopenai.CreateCompletionsRequest) []byte {
+func mockOpenAiResponse(mockClient *mocks.OpenAiClient, expectedRequest goopenai.CreateCompletionsRequest) []byte {
 	mockResponse, err := os.ReadFile("../test/explain_response.json")
 	if err != nil {
 		panic(err)

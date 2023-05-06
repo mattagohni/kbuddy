@@ -58,14 +58,15 @@ func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai
 			_, filename, _, _ := runtime.Caller(0)
 			pathToCurrentDir := filepath.Dir(filename)
 
-			var responseFormat, err = os.ReadFile(pathToCurrentDir + "/request/explain_request.json")
+			var responseFormat, err = os.ReadFile(pathToCurrentDir + "/request/response_format.json")
 			check(err)
 
 			message := goopenai.Message{
 				Role: "user",
 				Content: fmt.Sprintf(
 					"explain %s in context of kubernetes. in your response make a new line every 80"+
-						" charecters. also structure your response in a json with the following format "+string(responseFormat), givenSearchTerm),
+						" charecters. also structure your response in a json with the following format "+
+						string(responseFormat), givenSearchTerm),
 			}
 			messages = append(messages, message)
 			r := goopenai.CreateCompletionsRequest{
