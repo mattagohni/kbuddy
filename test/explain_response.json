@@ -1,0 +1,19 @@
+{
+  "keyword": "Deployment",
+  "explanation": "A Deployment provides declarative updates for Pods and ReplicaSets.",
+  "disclaimer": "This information may not be accurate.",
+  "exampleYaml": "",
+  "exampleJson": "",
+  "furtherReading": [
+    {
+      "keyword": "Pod",
+      "description": "An overview of Pods.",
+      "link": "https://kubernetes.io/docs/concepts/workloads/pods/"
+    },
+    {
+      "keyword": "ReplicaSet",
+      "description": "An overview of ReplicaSets.",
+      "link": "https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/"
+    }
+  ]
+}
