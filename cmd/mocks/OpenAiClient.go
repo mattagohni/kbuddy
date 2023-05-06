@@ -20,9 +20,11 @@ func (_m *OpenAiClient) CreateCompletions(ctx context.Context, req goopenai.Crea
 
 	var r0 goopenai.CreateCompletionsResponse
 	var r1 error
-
-	if rf, ok := ret.Get(0).(func(context.Context, goopenai.CreateCompletionsRequest) *goopenai.CreateCompletionsResponse); ok {
-		r0 = *rf(ctx, req)
+	if rf, ok := ret.Get(0).(func(context.Context, goopenai.CreateCompletionsRequest) (goopenai.CreateCompletionsResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, goopenai.CreateCompletionsRequest) goopenai.CreateCompletionsResponse); ok {
+		r0 = rf(ctx, req)
 	} else {
 		r0 = ret.Get(0).(goopenai.CreateCompletionsResponse)
 	}
