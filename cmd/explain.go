@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
-	goopenai "github.com/franciscoescher/goopenai"
+	"github.com/franciscoescher/goopenai"
 	. "github.com/mattagohni/kbuddy/internal/response"
 	"github.com/spf13/cobra"
 	"io"
@@ -18,7 +18,7 @@ import (
 	"runtime"
 )
 
-// explainCmd represents the explain command
+const DefaultLanguage = "english"
 
 func init() {
 	apiKey := os.Getenv("OPEN_AI_API_KEY")
@@ -32,8 +32,9 @@ func init() {
 }
 
 func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai.CreateCompletionsRequest) (goopenai.CreateCompletionsResponse, error)) *cobra.Command {
+	var language string
 	var explainCmd = &cobra.Command{
-		Use:   "explain",
+		Use:   "explain <keyword>",
 		Short: "Will explain given topic related to kubernetes using ChatGPT",
 		Long:  `given keyword e.g. (Deployment) will be explained using ChatGPT`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -45,6 +46,10 @@ func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai
 				givenSearchTerm = args[0]
 			}
 
+			if len(language) == 0 {
+				language = DefaultLanguage
+			}
+
 			_, filename, _, _ := runtime.Caller(0)
 			pathToCurrentDir := filepath.Dir(filename)
 
@@ -54,18 +59,20 @@ func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai
 			message := goopenai.Message{
 				Role: "user",
 				Content: fmt.Sprintf(
-					"explain %s in context of kubernetes. in your response make a new line every 80"+
-						" charecters. also structure your response in a json with the following format "+
-						string(responseFormat), givenSearchTerm),
+					"Explain %s in context of kubernetes. The user will need your response in the language: %s!"+
+						"Add a disclaimer for your statement with reference to the docs."+
+						"In your response make a new line every 80 charecters. Also structure your response in a json with the following format "+
+						string(responseFormat),
+					givenSearchTerm, language),
 			}
 			messages = append(messages, message)
-			r := goopenai.CreateCompletionsRequest{
+			createCompletionsRequest := goopenai.CreateCompletionsRequest{
 				Model:       "gpt-3.5-turbo",
 				Messages:    messages,
 				Temperature: 0.2,
 			}
 
-			completions, err := sendExplainRequest(context.Background(), r)
+			completions, err := sendExplainRequest(context.Background(), createCompletionsRequest)
 			check(err)
 
 			var explainResponse ExplainResponse
@@ -90,6 +97,7 @@ func NewExplainCommand(sendExplainRequest func(ctx context.Context, req goopenai
 		},
 	}
 
+	explainCmd.Flags().StringVarP(&language, "lang", "l", "english", "kbuddy explain [keyword] --lang=german")
 	return explainCmd
 }
 

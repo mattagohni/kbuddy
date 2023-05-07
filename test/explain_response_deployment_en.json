@@ -1,0 +1,19 @@
+{
+  "keyword": "Deployment",
+  "explanation": "A Deployment in Kubernetes is a resource object that manages a set of replicas of a Pod. It provides declarative updates for Pods and ReplicaSets. A Deployment ensures that a specified number of replica Pods are running at any given time. If there are too few replicas, it will create more. If there are too many replicas, it will delete the excess. Deployments are useful when you need to update or roll back an application, as they provide a way to manage the deployment process without downtime. Deployments can also be used to scale an application up or down based on demand.",
+  "disclaimer": "This information may not be accurate.",
+  "exampleYaml": "",
+  "exampleJson": "",
+  "furtherReading": [
+    {
+      "keyword": "Pod",
+      "description": "An overview of Pods.",
+      "link": "https://kubernetes.io/docs/concepts/workloads/pods/"
+    },
+    {
+      "keyword": "ReplicaSet",
+      "description": "An overview of ReplicaSets.",
+      "link": "https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/"
+    }
+  ]
+}
